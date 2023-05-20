@@ -12,7 +12,7 @@ Useful Optimized and Effective Deep Learning training strategies for improved mo
 -   [Generative Models](#generative-models)
     -   [Training GAN](#training-gan)
 -   [Appendix](#appendix)
-    -   [Data Augmentations - Why/Why Not?](#data-augmentations-why/why-not)
+    -   [Data Augmentations](#data-augmentations)
     -   [How to choose LR Scheduler?](#how-to-choose-lr-scheduler)
     -   
 
@@ -41,23 +41,25 @@ Now these strategies are divided based on the Daataset Charactersisics and the c
     - Data Preprocessing : Normalize Images using standard values - mean = [0.485, 0.456, 0.406] and std = [0.229, 0.224, 0.225]
     - Data splitting and Smapling : Stratified Splitting and Weighted Sampling. This helps better generalization by including samples based on clas weights or Inverse clas frequenccey.
 - Strategy 1 :  In case when classification problem falls in Quadrant 1, choose base model based on dataset complexity. If you dataset contains hard samples or complex pattern, choose either from EfficientNet or DenseNet family. Train the model from scratch( no pre-trained weights) and for longer epoch. To save training cost use Lion optimizer.
-    - Batch size : [128, 256] if size_of_dataset/num_of_classes > 5k and size_of_dataset > 0.1M
+    - Batch size : [128, 256] if size_of_dataset/num_of_classes > 5k and size_of_dataset > 0.1M # keep lower value in case of less GPU memory
     - Epochs : > 50
     - Optimizer : Lion with 0.01 LR
     - Learning rate scheduler : When dealing with larger and complex datasets, along with a higher number of epochs, the CosineAnnealingLR scheduler is often a suitable choice.
 - Strategy 2 :  In case when classification problem falls in Quadrant 2, choose base model based on its Stability, Training efficiency and Top-1 Acccuracy on ImageNet Dataset. One suggestion is to pick from EfficientnetV2 family. They are designed for faster training and higher accuracy. As dataset is similar to the pretrained model dataset, a important strategy is to Freeze 70% of the base model layers and only train the remaining layers. Mostly later half layers of the models are responsible to learn and extract complex features specific to dataset. So its a good strategy to freeze around 70% layers. In case of simple dataset freeze even more layers, consider around 85-90%. And similarly for very complex try to keep it near 40%. Check this code to know How to freeze layers in Pytorch? 
-    - Batch size : 
-    - Learning rate : 
-    - Learning rate scheduler :
+    - Batch size : [128, 256] if size_of_dataset/num_of_classes > 5k and size_of_dataset > 0.1M # keep lower value in case of less GPU memory
+    - Epochs : <20
+    - Optimizer : Adam with 0.01 (in case of simple dataset) and 0.001 (in case of complex dataset)
+    - Learning rate scheduler : ReduceLROnPlateau (in case of simple dataset) and CosineAnnealingLR (in case of complex dataset)
 - Strategy 3 :  In case when classification problem falls in Quadrant 3, choose base model based on its complexity. If you dataset contains complex pattern, choose either from EfficientNet or DenseNet family. Use stratified splitting and Weighted Sampling while creating dataloaders, so that sampling is performed based on class weights. It helps in better generaliation. To decide batch size.
-    - Batch size : 
-    - Learning rate : 
-    - Learning rate scheduler : OneCycleLR
+    - Batch size : [128, 256] if size_of_dataset/num_of_classes > 5k and size_of_dataset > 0.1M 
+    - Epochs : <20
+    - Optimizer : Adam with 0.01 (in case of simple dataset) and 0.001 (in case of complex dataset)
+    - Learning rate scheduler : ReduceLROnPlateau (in case of simple dataset) and CosineAnnealingLR (in case of complex dataset)
 - Strategy 4 :  In case when classification problem falls in Quadrant 1, choose base model based on its complexity. If you dataset contains complex pattern, choose either from EfficientNet or DenseNet family. Use stratified splitting and Weighted Sampling while creating dataloaders, so that sampling is performed based on class weights. It helps in better generaliation. To decide batch size.
-    - Data  
-    - Batch size : 
-    - Learning rate : 
-    - Learning rate scheduler :
+    - Batch size : [128, 256] if size_of_dataset/num_of_classes > 5k and size_of_dataset > 0.1M 
+    - Epochs : <20
+    - Optimizer : Adam with 0.01 (in case of simple dataset) and 0.001 (in case of complex dataset)
+    - Learning rate scheduler : ReduceLROnPlateau (in case of simple dataset) and CosineAnnealingLR (in case of complex dataset)
 
 
 ## Generative Models
@@ -67,7 +69,7 @@ Now these strategies are divided based on the Daataset Charactersisics and the c
 
 ## Appendix
 
-### Data Augmentations - Why/Why Not?
+### Data Augmentations
 -   Why to use Data Augmentations like Random Rotation or Horzontal/Verticle Flips as CNN is robust them? 
     -   Increased Variability: Data augmentation introduces additional variations in the training data, which can help improve the generalization ability of the model. By applying flips and rotations, the model becomes exposed to different viewpoints and orientations of the objects, leading to a more robust understanding of the underlying features. This can enhance the model's ability to handle variations in the test data that may include different orientations or perspectives.
 
