@@ -37,25 +37,30 @@ The field of deep learning currently involves a significant amount of trial and 
 Well a common strategy regardless of dataset charactersitics for this task is to apply Transfer Learning , choosing a pretrained model, add a custom head layer as per requirement and then train that model with several hyperparameter configuration. But we will discus strategies which are more generic and preloaded with already configured hyperparamters for specific choice of model.
 
 Now these strategies are divided based on the Daataset Charactersisics and the choice of model. In general, considering the similarity of custom dataset with pre-trained model dataset, a problem can fall into one of these quadrants (as shown in image). 
-- Common to every strategy : 
+
+<p align="center">
+  <img src="assets/imgclass.svg" alt="Size vs Similarity">
+</p>
+
+- **Common to every strategy** : 
     - Data Preprocessing : Normalize Images using standard values - mean = [0.485, 0.456, 0.406] and std = [0.229, 0.224, 0.225]
     - Data splitting and Smapling : Stratified Splitting and Weighted Sampling. This helps better generalization by including samples based on clas weights or Inverse clas frequenccey.
-- Strategy 1 :  In case when classification problem falls in Quadrant 1, choose base model based on dataset complexity. If you dataset contains hard samples or complex pattern, choose either from EfficientNet or DenseNet family. Train the model from scratch( no pre-trained weights) and for longer epoch. To save training cost use Lion optimizer.
+- **Strategy 1** :  In case when classification problem falls in Quadrant 1, choose base model based on dataset complexity. If you dataset contains hard samples or complex pattern, choose either from EfficientNet or DenseNet family. Train the model from scratch( no pre-trained weights) and for longer epoch. To save training cost use Lion optimizer.
     - Batch size : [128, 256] if size_of_dataset/num_of_classes > 5k and size_of_dataset > 0.1M # keep lower value in case of less GPU memory
     - Epochs : > 50
     - Optimizer : Lion with 0.01 LR
     - Learning rate scheduler : When dealing with larger and complex datasets, along with a higher number of epochs, the CosineAnnealingLR scheduler is often a suitable choice.
-- Strategy 2 :  In case when classification problem falls in Quadrant 2, choose base model based on its Stability, Training efficiency and Top-1 Acccuracy on ImageNet Dataset. One suggestion is to pick from EfficientnetV2 family. They are designed for faster training and higher accuracy. As dataset is similar to the pretrained model dataset, a important strategy is to Freeze 70% of the base model layers and only train the remaining layers. Mostly later half layers of the models are responsible to learn and extract complex features specific to dataset. So its a good strategy to freeze around 70% layers. In case of simple dataset freeze even more layers, consider around 85-90%. And similarly for very complex try to keep it near 40%. Check this code to know How to freeze layers in Pytorch? 
+- **Strategy 2** :  In case when classification problem falls in Quadrant 2, choose base model based on its Stability, Training efficiency and Top-1 Acccuracy on ImageNet Dataset. One suggestion is to pick from EfficientnetV2 family. They are designed for faster training and higher accuracy. As dataset is similar to the pretrained model dataset, a important strategy is to Freeze 70% of the base model layers and only train the remaining layers. Mostly later half layers of the models are responsible to learn and extract complex features specific to dataset. So its a good strategy to freeze around 70% layers. In case of simple dataset freeze even more layers, consider around 85-90%. And similarly for very complex try to keep it near 40%. Check this code to know How to freeze layers in Pytorch? 
     - Batch size : [128, 256] if size_of_dataset/num_of_classes > 5k and size_of_dataset > 0.1M # keep lower value in case of less GPU memory
     - Epochs : <20
     - Optimizer : Adam with 0.01 (in case of simple dataset) and 0.001 (in case of complex dataset)
     - Learning rate scheduler : ReduceLROnPlateau (in case of simple dataset) and CosineAnnealingLR (in case of complex dataset)
-- Strategy 3 :  In case when classification problem falls in Quadrant 3, choose base model based on its complexity. If you dataset contains complex pattern, choose either from EfficientNet or DenseNet family. Use stratified splitting and Weighted Sampling while creating dataloaders, so that sampling is performed based on class weights. It helps in better generaliation. To decide batch size.
+- **Strategy 3** :  In case when classification problem falls in Quadrant 3, choose base model based on its complexity. If you dataset contains complex pattern, choose either from EfficientNet or DenseNet family. Use stratified splitting and Weighted Sampling while creating dataloaders, so that sampling is performed based on class weights. It helps in better generaliation. To decide batch size.
     - Batch size : [128, 256] if size_of_dataset/num_of_classes > 5k and size_of_dataset > 0.1M 
     - Epochs : <20
     - Optimizer : Adam with 0.01 (in case of simple dataset) and 0.001 (in case of complex dataset)
     - Learning rate scheduler : ReduceLROnPlateau (in case of simple dataset) and CosineAnnealingLR (in case of complex dataset)
-- Strategy 4 :  In case when classification problem falls in Quadrant 1, choose base model based on its complexity. If you dataset contains complex pattern, choose either from EfficientNet or DenseNet family. Use stratified splitting and Weighted Sampling while creating dataloaders, so that sampling is performed based on class weights. It helps in better generaliation. To decide batch size.
+- **Strategy 4** :  In case when classification problem falls in Quadrant 1, choose base model based on its complexity. If you dataset contains complex pattern, choose either from EfficientNet or DenseNet family. Use stratified splitting and Weighted Sampling while creating dataloaders, so that sampling is performed based on class weights. It helps in better generaliation. To decide batch size.
     - Batch size : [128, 256] if size_of_dataset/num_of_classes > 5k and size_of_dataset > 0.1M 
     - Epochs : <20
     - Optimizer : Adam with 0.01 (in case of simple dataset) and 0.001 (in case of complex dataset)
