@@ -1,108 +1,107 @@
-# DL-Playbook by wildoctopus 🐙
-### A Researcher's Guide: Why to Use What, In Which Case
+[License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)
 
-Stop guessing. This repo is a collection of decision frameworks for Deep Learning with evidence, code, and failure cases. 
+# Deep Learning Training Playbook
 
-Made for researchers who need to pick the right architecture, training strategy, and optimization trick for their specific problem.
+Practical strategies, experiments, and lessons learned for training models from **2014 to 2026**.
 
----
-
-## Core Philosophy
-There is no "best model". There is only "best model *for your data, compute, and goal*".  
-Every section here follows: `Problem -> Options -> Decision Rule -> Evidence -> Code`
+This guide helps you answer **"what to use, when, and how"** so you don't waste GPU and time.
 
 ---
 
-## 1. Training Strategy: How Much To Fine-Tune?
+## 🤔 Table of Contents - Ask Yourself:
 
-Depends on 2 things: **Dataset Size** and **Domain Similarity**
-
-![Transfer Learning Strategy Quadrant](assets/transfer-learning-quadrant.png)
-
-| Case | Dataset | Use This | Why | Evidence |
-| --- | --- | --- | --- | --- |
-| **Large + Different** | 50k+ images, New domain | **Train Whole Model** | Pretrained features don't transfer. Need to relearn. | Kornblith 2019 |
-| **Large + Similar** | 50k+ images, Same domain | **Freeze 65-70% Layers** | Keep low-level features, retrain high-level | Yosinski 2014 |
-| **Small + Different** | <2k images, New domain | **Freeze 80-85% Layers** | Prevent overfitting. Only adapt head | Standard CV practice |
-| **Small + Similar** | <2k images, Same domain | **Freeze Backbone, Train Head** | Pretrained = feature extractor | CLIP Linear Probe |
-
-**Constants for all**: ImageNet `mean=[0.485,0.456,0.406]`, `std=[0.229,0.224,0.225]`. Use AdamW + CosineLR.
+1.  **[How do I choose a training strategy?](docs/transfer-learning.md)**  
+    `From scratch vs Fine-tune vs LoRA` → See the 4-quadrant rule
+2.  **[Which architecture should I pick for my problem?](#q1-which-architecture-should-i-use)**  
+    `Medical vs Web-scale vs Long context vs Multimodal`
+3.  **[Which generative model should I use?](#q2-which-generative-model-should-i-use)**  
+    `T2I vs LoRA vs Video vs Virtual Try-On`
+4.  **[How do I train faster and use less GPU?](#q3-how-do-i-train-faster-and-use-less-gpu)**  
+    `QLoRA vs Muon vs Lion vs AdamW`
+5.  **[Why did we end up with these models?](#part-5-how-we-got-here---2012-to-2026)**  
+    `The history from AlexNet to Flux/Mamba2`
 
 ---
 
-## 2. Architecture Choice: CNN vs Transformer vs MLP-Mixer
+## Part 1: The Timeless Rule - Transfer Learning
 
-`Rule: It depends on data size and inductive bias needed`
+> **Before 2014 everyone trained from scratch.**  
+> *Expensive, slow, and $10k per model.*
 
-| If you have... | Use This | Why | When NOT to use |
-| --- | --- | --- | --- |
-| **<10k images** | **CNN: ResNet, ConvNeXt** | Strong inductive bias: locality, translation equivariance | Don't use ViT. Will overfit |
-| **10k - 1M images** | **Hybrid: Swin, ConvNeXt-V2** | Best of both. Local + Global attention | Avoid pure ViT without pretraining |
-| **>1M images** | **Transformer: ViT, DeiT** | Scales best with data. No inductive bias needed | Waste of compute on small data |
-| **Tabular + Image** | **MLP-Mixer / MLP** | Fast, simple. Good baseline | Poor for spatial tasks |
+Researchers found there are only **4 cases** that still rule in 2026:
 
-**Evidence**: Dosovitskiy 2020 "An Image is Worth 16x16 Words" - ViT needs 300M images to beat ResNet.
+[Transfer Learning Strategy Quadrant](https://raw.githubusercontent.com/wildoctopus/effective-deep-learning-training-strategies/main/assets/imgclass.svg)
 
----
+**The core question this answers:**  
+`Do I have enough data?` + `Is my data similar to ImageNet?` = **Pick 1 of 4 strategies**
 
-## 3. Optimization: Which Optimizer + Scheduler?
+**How to read this:**
+- **X-axis: Domain Similarity** → `Cats/Dogs = Similar to ImageNet` | `Xray/Satellite = Different`
+- **Y-axis: Dataset Size** → `1k images = Small` | `1M images = Large`
 
-| Problem | Use This | Why |
-| --- | --- | --- |
-| **Training from scratch** | `SGD + Momentum 0.9 + StepLR` | Better generalization. Slower but stable |
-| **Fine-tuning** | `AdamW + CosineAnnealingLR` | Adapts fast. Weight decay prevents overfit |
-| **Diffusion / GenAI** | `AdamW 8-bit + LR 1e-4` | Memory efficient. Stable for UNet |
-| **Training is unstable** | `Gradient Clipping + Warmup 500 steps` | Prevents loss spikes |
+> **2026 Update**: The logic is still the same.  
+> "Train Remaining" now just means **"use LoRA/QLoRA"** to save 10x GPU.
+
+[**→ Read the full Transfer Learning Deep Dive**](docs/transfer-learning.md)  
+*Covers: when to freeze, when to full-finetune, domain gap math, and 4 real case studies*
 
 ---
 
-## 4. Data Problem: What Augmentation When?
+## Part 2: Quick Questions & Answers
 
-| Dataset Size | Use This | Why |
-| --- | --- | --- |
-| **Large >50k** | `RandAugment, CutMix, MixUp` | Prevents overfitting, regularizes |
-| **Small <5k** | `Basic: Flip, Crop, ColorJitter` | Aggressive aug will destroy signal |
-| **Medical / Satellite** | `Domain-specific: Elastic Deform` | Generic aug breaks semantics |
+### Q1: **Which architecture should I use?**
+
+| **Problem You're Solving** | **Best Architecture 2026** | **Why This Wins** | **Watch Out** |
+| :--- | :--- | :--- | :--- |
+| 🩺 **Medical, Satellite, Industrial** <br> *Small data, need accuracy, can't overfit* | **`ConvNeXtV2`** | Has inductive bias built in. Learns local features fast. <br> **Gets to 90% with 5k images** | Hits ceiling at 10M+ images. Worse than ViT at scale |
+| 🌐 **Web-scale Classification, CLIP** <br> *Millions of images, need SOTA* | **`SigLIP2`, `ViT-G/14`** | No bias = scales better. Sees global context. <br> **+3% over ConvNeXt at 50M images** | Needs 1M+ images or it overfits. 24GB+ VRAM |
+| 📄 **Long Docs, Code Repos, Books** <br> *Context > 32k tokens* | **`Mamba2`, `RWKV-6`** | `O(n)` memory. Processes like "passing notes". <br> **1M context on 24GB GPU** | 3-5% worse reasoning than GPT-4o. New ecosystem |
+| 🖼️ **VLM, OCR, Video Understanding** <br> *Images + Text together* | **`Qwen2-VL`, `Gemma3`** | Trained natively on both modalities. <br> **Best OCR + grounding in 2026** | 2x slower and 2x VRAM vs text-only LLM |
+
+[**→ Read the full Architecture Deep Dive**](docs/architecture.md)
+
+### Q2: **Which generative model should I use?**
+
+| **Problem You're Solving** | **Best Model 2026** | **Why This Wins** | **Watch Out** |
+| :--- | :--- | :--- | :--- |
+| 🖌️ **Product Ads, Posters** <br> *Need perfect text + follow prompts* | **`Flux.1-dev`, `SD3.5`** | Rectified Flow. 20 steps. <br> **Only model that spells correctly** | 12GB+ VRAM. ~8s per image on 3090 |
+| 👕 **E-commerce, Virtual Try-On** <br> *Put clothes on people, keep details* | **`CatVTON`, `Leffa`** | No pose estimation needed. <br> **Preserves fabric texture + hands** | Only works on humans. Not for products |
+| 🎭 **Brand Consistency, Characters** <br> *Train on 50-200 images* | **`Flux LoRA`, `SD3 LoRA`** | Trains 0.1% of weights. <br> **30 min on 1 GPU, doesn't break base model** | Won't do full style transfer. Use DreamBooth for that |
+| 🎬 **Short Videos, Ads** <br> *5-10s clips with motion* | **`Kling`, `Runway Gen3`** | Best temporal coherence in 2026. <br> **Less flickering, better physics** | $ per second. Still not perfect with hands |
+
+[**→ Read the full Generative Deep Dive**](docs/generative.md)
+
+### Q3: **How do I train faster and use less GPU?**
+
+| **Problem You're Solving** | **Best Setup 2026** | **Why This Wins** | **Watch Out** |
+| :--- | :--- | :--- | :--- |
+| 🤏 **Fine-tune 7B LLM on 3090** <br> *Can't afford A100s* | **`QLoRA r=64` + `8-bit AdamW`** | 4-bit base + adapters. <br> **Fits in 20GB VRAM, 90% of full FT quality** | 2-3% accuracy drop. Slower training |
+| 🚀 **Train 1B+ Model from Scratch** <br> *Need to save GPU $* | **`Muon` + `Sophia` + `WSD LR`** | 2nd order optimizer. <br> **~1.8x faster convergence vs AdamW** | Overhead on <1B models. New, less stable |
+| 💾 **Fine-tune ViT on 1 GPU** <br> *Memory bottleneck* | **`Lion` optimizer** | Half the optimizer states. <br> **Same accuracy, 50% less VRAM** | Needs LR tuning. Not as robust as AdamW |
+| ✅ **Just want it to work** <br> *90% of projects* | **`AdamW` + `Cosine Decay`** | Battle tested. <br> **Works on everything** | Not the fastest. Not the most memory efficient |
+
+[**→ Read the full Optimization Deep Dive**](docs/optimization.md)
+
+---
+
+## Part 5: How We Got Here - 2012 to 2026
+
+| **Era** | **Key Breakthrough** | **Why it Mattered** |
+| :--- | :--- | :--- |
+| **2012** | `AlexNet` | Proved **deep CNNs work** |
+| **2014** | Transfer Learning | **Reuse ImageNet features**. The Quadrant above |
+| **2017** | `Transformer` | *Every token can talk to every other token* |
+| **2020** | `CLIP`, `GPT-3` | **Pretrain once**, adapt to anything |
+| **2023** | `SDXL` | GANs died. **Image quality jumped** |
+| **2024** | `LoRA`, `QLoRA` | Fine-tune **70B models on 1 GPU** |
+| **2026** | `Mamba2`, `Flux`, `Muon` | **Faster, cheaper, and better** than 2023 |
 
 ---
 
-## 5. GenAI Specific: Which Diffusion Model for What?
-
-Since most of my research is here:
-
-| Goal | Use This | Why |
-| --- | --- | --- |
-| **Virtual Try-On** | `IDM-VTON, OOTDiffusion` | Preserves garment details + person identity |
-| **Image Editing** | `SDXL-Inpainting, BrushNet` | Best control + quality |
-| **Fast Inference** | `LCM, SD-Turbo` | 4 steps instead of 50 |
-| **Training on 1 GPU** | `LoRA, Dreambooth` | Only train 1% of parameters |
-
-Full breakdowns in: `/genai/vton-papers/`
-
----
-
-## 6. Common Mistakes Researchers Make
-
-| Symptom | Root Cause | Fix from this repo |
-| --- | --- | --- |
-| Val loss goes up | Using ViT on 1k images | See Section 2: Use ResNet |
-| Loss NaN in epoch 1 | LR too high for fine-tuning | See Section 3: Use 1e-5 |
-| Model doesn't generalize | Wrong normalization | See Section 1: Use ImageNet stats |
-
----
-
-## 7. How to Use This Repo
-1.  Identify your problem: Data size, Domain, Goal
-2.  Go to the relevant section above
-3.  Copy the code + decision rule
-4.  Cite the evidence paper
-
-PRs welcome if you have a new "case -> solution" with a paper.
-
----
+## License
+This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) file for details.
 
 ## About
-Curated by **wildoctopus**. I break down SOTA research into decision trees.  
-Other repos: [awesome-diffusion-vton](link) | [huggingface-cloth-segmentation](https://github.com/wildoctopus/huggingface-cloth-segmentation)
+Turning **research papers into decision trees** so you don't have to read 50 pages to pick a model.
 
-**License**: MIT
+PRs and benchmarks welcome. **This is a living guide.**
